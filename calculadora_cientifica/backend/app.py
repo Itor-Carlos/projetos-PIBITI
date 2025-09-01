@@ -7,14 +7,12 @@ import os
 app = Flask(__name__)
 load_dotenv()
 
-# Token do Hugging Face (do seu .env)
+
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-# Carregar tokenizer e modelo com autenticação
 tokenizer = AutoTokenizer.from_pretrained("google/gemma-3-270m", token=HF_TOKEN)
 model = AutoModelForCausalLM.from_pretrained("google/gemma-3-270m", token=HF_TOKEN)
 
-# Se GPU disponível, mover o modelo
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model.to(device)
 
