@@ -37,8 +37,3 @@ async def generate(prompt_req: PromptRequest):
         return {"response": resp.text}
     except Exception as e:
         return {"error": str(e)}
-
-
-@app.get("/teste")
-async def teste():
-    return {"message": GEMINI_API_KEY}
