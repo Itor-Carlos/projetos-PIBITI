@@ -1,35 +1,44 @@
-from flask import Flask, jsonify
-from dotenv import load_dotenv
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from google import genai
 import os
+from dotenv import load_dotenv
 
-app = Flask(__name__)
 load_dotenv()
+GEMINI_API_KEY = os.getenv("GEMINI_TOKEN")
+client = genai.Client(api_key=GEMINI_API_KEY)
+
+origins = [
+    "http://localhost",
+    "http://localhost:3000",
+]
+
+class PromptRequest(BaseModel):
+    prompt: str
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.post("/generate")
+async def generate(prompt_req: PromptRequest):
+    try:
+        resp = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt_req.prompt
+        )
+        return {"response": resp.text}
+    except Exception as e:
+        return {"error": str(e)}
 
 
-HF_TOKEN = os.getenv("HF_TOKEN")
-
-tokenizer = AutoTokenizer.from_pretrained("google/gemma-3-270m", token=HF_TOKEN)
-model = AutoModelForCausalLM.from_pretrained("google/gemma-3-270m", token=HF_TOKEN)
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model.to(device)
-
-@app.route('/base')
-def base_route():
-    prompt_text = "How much is 1 + 1?"
-    print(device)
-    
-    inputs = tokenizer(prompt_text, return_tensors="pt").to(device)
-
-    with torch.no_grad():
-        outputs = model.generate(**inputs, max_new_tokens=50)
-
-    resposta = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    print(resposta)
-
-    return jsonify({"resposta": resposta})
-
-if __name__ == "__main__":
-    app.run(debug=True)
+@app.get("/teste")
+async def teste():
+    return {"message": GEMINI_API_KEY}
