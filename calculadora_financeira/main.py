@@ -43,10 +43,8 @@ def get_connection():
         database="calculadora_financeira"
     )
 
-
-
 @mcp.tool()
-async def inserir_transacao(type: Tipo, category: Categoria, amount: float, description: str, date: str):
+def inserir_transacao(type: Tipo, category: Categoria, amount: float, description: str, date: str):
     try:
         """
         Inserting a financial transaction into the database.
@@ -76,7 +74,7 @@ async def inserir_transacao(type: Tipo, category: Categoria, amount: float, desc
 
 
 @mcp.tool()
-async def get_by_descricao(descricao: str):
+def get_by_descricao(descricao: str):
     """
     Fetch all financial transactions from the database filtered by description.
     
@@ -97,7 +95,7 @@ async def get_by_descricao(descricao: str):
         return {"status": "erro", "detalhe": str(e)}
 
 @mcp.tool()
-async def transacao_mes_ano(mes: int, ano: int):
+def transacao_mes_ano(mes: int, ano: int):
     """
     Fetch all financial transactions from the database filtered by month and year.
     
@@ -124,7 +122,7 @@ async def transacao_mes_ano(mes: int, ano: int):
 from enum import Enum
 
 @mcp.tool()
-async def get_resume_by_categoria(categoria: str):
+def get_resume_by_categoria(categoria: str):
     """
         Fetch all financial transaction from database filtered by categoria
         
@@ -160,7 +158,7 @@ async def get_resume_by_categoria(categoria: str):
         return {"status": "erro", "detalhe": str(exception)}
 
 @mcp.tool()
-async def get_transacoes(date: str):
+def get_transacoes(date: str):
     """
     Fetch all financial transactions from the database filtered by date.
     
