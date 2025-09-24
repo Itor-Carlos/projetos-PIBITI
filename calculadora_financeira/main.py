@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Optional
 from datetime import datetime
 
 import mysql.connector
@@ -28,7 +28,7 @@ class Categoria(Enum):
 
 
 def get_connection() -> MySQLConnection:
-    """Cria conexão com o banco MySQL."""
+    """Create a connection to the MySQL database."""
     return mysql.connector.connect(
         host="localhost",
         user="root",
@@ -38,7 +38,7 @@ def get_connection() -> MySQLConnection:
 
 
 class DB:
-    """Helper para gerenciar conexões automaticamente."""
+    """Helper class to automatically manage MySQL connections."""
 
     def __enter__(self):
         self.conn = get_connection()
@@ -52,7 +52,8 @@ class DB:
         self.conn.close()
 
 
-def get_categoria(valor: str) -> Union[Categoria, None]:
+def get_categoria(valor: str) -> Optional[Categoria]:
+    """Convert a string into a Categoria enum if valid, otherwise return None."""
     try:
         return Categoria(valor.capitalize())
     except ValueError:
@@ -60,10 +61,19 @@ def get_categoria(valor: str) -> Union[Categoria, None]:
 
 
 @mcp.tool()
-def inserir_transacao(tipo: Tipo, categoria: Categoria, valor: float, descricao: str, data: str
-) -> Dict[str, str]:
+def inserir_transacao(tipo: Tipo, categoria: Categoria, valor: float, descricao: str, data: str) -> Dict[str, str]:
     """
-    Insere uma transação financeira no banco.
+    Insert a financial transaction into the database.
+
+    Args:
+        tipo (Tipo): Transaction type (Receita or Despesa).
+        categoria (Categoria): Transaction category.
+        valor (float): Transaction amount.
+        descricao (str): Description of the transaction.
+        data (str): Transaction date (YYYY-MM-DD).
+
+    Returns:
+        Dict[str, str]: Operation status.
     """
     try:
         with DB() as cursor:
@@ -72,17 +82,58 @@ def inserir_transacao(tipo: Tipo, categoria: Categoria, valor: float, descricao:
                 VALUES (%s, %s, %s, %s, %s)
             """
             cursor.execute(sql, (tipo.value, categoria.value, valor, descricao, data))
-        logging.info(f"Transação inserida: {descricao} - {valor}")
+        logging.info(f"Transaction inserted: {descricao} - {valor}")
         return {"status": "ok"}
     except Exception as e:
-        logging.exception("Erro ao inserir transação")
-        return {"status": "erro", "detalhe": str(e)}
+        logging.exception("Error inserting transaction")
+        return {"status": "error", "details": str(e)}
+
+
+@mcp.tool()
+def get_transacoes_by_periodo(startData: str, finalData: str, categoria: Optional[Categoria] = None) -> List[Dict]:
+    """
+    Retrieve all transactions within a date range, with optional category filtering.
+
+    Args:
+        startData (str): Start date (YYYY-MM-DD).
+        finalData (str): End date (YYYY-MM-DD).
+        categoria (Categoria, optional): Category to filter.
+
+    Returns:
+        List[Dict]: List of transactions within the specified range.
+    """
+    try:
+        with DB() as cursor:
+            sql = """
+                SELECT *
+                FROM transacao
+                WHERE data BETWEEN %s AND %s
+            """
+            params = [startData, finalData]
+
+            if categoria:
+                sql += " AND categoria = %s"
+                params.append(categoria.value)
+
+            cursor.execute(sql, params)
+            return cursor.fetchall()
+    except Exception as exception:
+        return [{
+            "status": "error",
+            "details": str(exception)
+        }]
 
 
 @mcp.tool()
 def get_by_descricao(descricao: str) -> List[Dict]:
     """
-    Busca transações filtradas pela descrição.
+    Search for transactions filtered by description.
+
+    Args:
+        descricao (str): Text to search within the description.
+
+    Returns:
+        List[Dict]: List of matching transactions.
     """
     try:
         with DB() as cursor:
@@ -90,14 +141,21 @@ def get_by_descricao(descricao: str) -> List[Dict]:
             cursor.execute(sql, (f"%{descricao}%",))
             return cursor.fetchall()
     except Exception as e:
-        logging.exception("Erro ao recuperar transações")
-        return [{"status": "erro", "detalhe": str(e)}]
+        logging.exception("Error retrieving transactions")
+        return [{"status": "error", "details": str(e)}]
 
 
 @mcp.tool()
 def transacao_mes_ano(mes: int, ano: int) -> List[Dict]:
     """
-    Busca transações filtradas por mês e ano.
+    Retrieve transactions filtered by month and year.
+
+    Args:
+        mes (int): Month number (1-12).
+        ano (int): Year (YYYY).
+
+    Returns:
+        List[Dict]: List of transactions within the given month and year.
     """
     try:
         with DB() as cursor:
@@ -105,19 +163,25 @@ def transacao_mes_ano(mes: int, ano: int) -> List[Dict]:
             cursor.execute(sql, (mes, ano))
             return cursor.fetchall()
     except Exception as e:
-        logging.exception("Erro ao recuperar transações")
-        return [{"status": "erro", "detalhe": str(e)}]
+        logging.exception("Error retrieving transactions")
+        return [{"status": "error", "details": str(e)}]
 
 
 @mcp.tool()
 def get_resume_by_categoria(categoria: str) -> List[Dict]:
     """
-    Resumo das transações agrupadas por tipo em uma categoria.
+    Generate a summary of transactions grouped by type within a given category.
+
+    Args:
+        categoria (str): Category name.
+
+    Returns:
+        List[Dict]: List containing type and total amount grouped by type.
     """
     try:
         cat_enum = get_categoria(categoria)
         if cat_enum is None:
-            raise ValueError(f"Categoria inválida: {categoria}")
+            raise ValueError(f"Invalid category: {categoria}")
 
         with DB() as cursor:
             sql = """
@@ -129,14 +193,20 @@ def get_resume_by_categoria(categoria: str) -> List[Dict]:
             cursor.execute(sql, (cat_enum.value,))
             return cursor.fetchall()
     except Exception as e:
-        logging.exception("Erro ao gerar resumo")
-        return [{"status": "erro", "detalhe": str(e)}]
+        logging.exception("Error generating summary")
+        return [{"status": "error", "details": str(e)}]
 
 
 @mcp.tool()
 def get_transacoes(date: str) -> List[Dict]:
     """
-    Busca transações por data exata (YYYY-MM-DD).
+    Retrieve transactions for a specific date.
+
+    Args:
+        date (str): Transaction date (YYYY-MM-DD).
+
+    Returns:
+        List[Dict]: List of transactions found for the given date.
     """
     try:
         with DB() as cursor:
@@ -144,8 +214,8 @@ def get_transacoes(date: str) -> List[Dict]:
             cursor.execute(sql, (date,))
             return cursor.fetchall()
     except Exception as e:
-        logging.exception("Erro ao recuperar transações")
-        return [{"status": "erro", "detalhe": str(e)}]
+        logging.exception("Error retrieving transactions")
+        return [{"status": "error", "details": str(e)}]
 
 
 if __name__ == "__main__":
