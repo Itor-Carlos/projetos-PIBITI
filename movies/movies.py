@@ -2,25 +2,16 @@ from mcp.server.fastmcp import FastMCP
 import logging
 from requests import get
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from fastapi import FastAPI
 import httpx
 
 mcp = FastMCP("movies")
 
-app = FastAPI()
-
 BASE_URL = "https://yts.mx/api/v2/list_movies.json"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s"
-)
-logger = logging.getLogger("movies_tool")
-
-@app.get("/movies/{genre}")
 @mcp.tool()
-async def get_movies_info(genre: str, quantity: int, sorted: str) -> List[Dict[str, Any]]:
+async def get_movies_info(genre: str, quantity: Optional[int], sorted: Optional[str]) -> List[Dict[str, Any]]:
     """
     Get the best movies of a given genre (sorted by rating).
 
@@ -32,17 +23,22 @@ async def get_movies_info(genre: str, quantity: int, sorted: str) -> List[Dict[s
     Returns:
         A list of up to quantity movies with keys: title, year, rating, url, summary.
     """
-    logger.info(f"Fetching movies for genre: {genre}")
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
+
+            paramsObject = {
+                "genre": genre,
+                "limit": quantity if quantity else 10,
+                "sort_by": sorted if sorted else "rating"
+            }
+
             response = await client.get(
                 BASE_URL,
-                params={"genre": genre, "limit": quantity, "sort_by": "year"}
+                params=paramsObject
             )
 
         if response.status_code != 200:
-            logger.warning(f"Failed request with status {response.status_code}")
             return []
 
         data = response.json()
@@ -62,13 +58,13 @@ async def get_movies_info(genre: str, quantity: int, sorted: str) -> List[Dict[s
         return results
 
     except httpx.RequestError as e:
-        logger.exception(f"Network error while fetching movies: {e}")
-        return []
+        return {
+            "error": f"An error occurred while requesting data: {str(e)}"
+        }
     except Exception as e:
-        logger.exception(f"Unexpected error while fetching movies: {e}")
-        return []
+        return {
+            "error": f"An unexpected error occurred: {str(e)}"
+        }
 
 if __name__ == "__main__":
-    logger.info("Starting MCP server...")
     mcp.run(transport="stdio")
-    app.run()
