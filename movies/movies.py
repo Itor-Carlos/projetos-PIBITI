@@ -41,7 +41,8 @@ async def get_movies_info(genre: str, quantity: Optional[int], sorted: Optional[
     Returns:
         A list of up to quantity movies with keys: title, year, rating, url, summary.
     """
-
+    logging.info(f"Fetching movies for genre={genre}, qty={quantity}, sort={sorted}")
+    
     try:
         async with httpx.AsyncClient(timeout=10) as client:
 
@@ -96,6 +97,7 @@ def get_movie_info(title: str) -> Union[MovieDetailResponse, Dict[str, str]]:
     Returns:
         A dictionary with detailed information about the movie, including keys: title, year, rating, url, summary, genres, language, runtime.
     """
+    logging.info(f"Fetching movie info for title={title}")
 
     try:
         paramsObject = {
