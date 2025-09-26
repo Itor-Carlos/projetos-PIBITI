@@ -11,7 +11,6 @@ logging.basicConfig(level=logging.DEBUG)
 
 mcp = FastMCP("calculadora_financeira")
 
-
 class Tipo(Enum):
     RECEITA = "Receita"
     DESPESA = "Despesa"
@@ -217,6 +216,22 @@ def get_transacoes(date: str) -> List[Dict]:
         logging.exception("Error retrieving transactions")
         return [{"status": "error", "details": str(e)}]
 
+@mcp.resource("resource://get_all_transacoes")
+def get_all_transacoes() -> List[Dict]:
+    """
+    Retrieve all transactions from the database.
+
+    Returns:
+        List[Dict]: List of all transactions.
+    """
+    try:
+        with DB() as cursor:
+            sql = "SELECT * FROM transacao"
+            cursor.execute(sql)
+            return cursor.fetchall()
+    except Exception as e:
+        logging.exception("Error retrieving all transactions")
+        return [{"status": "error", "details": str(e)}]
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")
