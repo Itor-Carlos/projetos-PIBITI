@@ -2,16 +2,33 @@ from mcp.server.fastmcp import FastMCP
 import logging
 from requests import get
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from fastapi import FastAPI
 import httpx
+from pydantic import BaseModel
 
 mcp = FastMCP("movies")
 
 BASE_URL = "https://yts.mx/api/v2/list_movies.json"
 
+class Movie(BaseModel):
+    title: str
+    year: int
+    rating: float
+    url: str
+    summary: str
+
+class MovieDetailResponse(BaseModel):
+    title: str
+    year: str
+    rating: str
+    url: str
+    summary: str
+    genres: List[str]
+    language: str
+
 @mcp.tool()
-async def get_movies_info(genre: str, quantity: Optional[int], sorted: Optional[str]) -> List[Dict[str, Any]]:
+async def get_movies_info(genre: str, quantity: Optional[int], sorted: Optional[str]) -> Union[List[Movie], Dict[str, str]]:
     """
     Get the best movies of a given genre (sorted by rating).
 
@@ -47,13 +64,13 @@ async def get_movies_info(genre: str, quantity: Optional[int], sorted: Optional[
         results = []
 
         for movie in movies:
-            results.append({
-                "title": movie.get("title", "Unknown"),
-                "year": movie.get("year", "N/A"),
-                "rating": movie.get("rating", 0),
-                "url": movie.get("url", ""),
-                "summary": movie.get("summary", "")
-        })
+            results.append(Movie(
+                title=movie.get("title", "Unknown"),
+                year=movie.get("year", "N/A"),
+                rating=movie.get("rating", 0),
+                url=movie.get("url", ""),
+                summary=movie.get("summary", "")
+            ))
 
         return results
 
@@ -61,6 +78,55 @@ async def get_movies_info(genre: str, quantity: Optional[int], sorted: Optional[
         return {
             "error": f"An error occurred while requesting data: {str(e)}"
         }
+    except Exception as e:
+        return {
+            "error": f"An unexpected error occurred: {str(e)}"
+        }
+
+
+@mcp.tool()
+def get_movie_info(title: str) -> Union[MovieDetailResponse, Dict[str, str]]:
+    """
+    Get detailed information about a specific movie by title.
+
+    Args:
+        title: The title of the movie to search for.
+
+    Returns:
+        A dictionary with detailed information about the movie, including keys: title, year, rating, url, summary, genres, language, runtime.
+    """
+
+    try:
+        paramsObject = {
+            "query_term": title
+        }
+
+        response = get(
+            BASE_URL,
+            params=paramsObject,
+        )
+
+        if response.status_code != 200:
+            return {"error": "Failed to retrieve data from the movie API."}
+
+        data = response.json()
+        movies = data.get("data", {}).get("movies", [])
+
+        if not movies:
+            return {"error": f"No movie found with the title '{title}'."}
+
+        movie = movies[0]
+
+        return {
+            "title": movie.get("title", "Unknown"),
+            "year": movie.get("year", "N/A"),
+            "rating": movie.get("rating", 0),
+            "url": movie.get("url", ""),
+            "summary": movie.get("summary", ""),
+            "genres": movie.get("genres", []),
+            "language": movie.get("language", "N/A")
+        }
+
     except Exception as e:
         return {
             "error": f"An unexpected error occurred: {str(e)}"
