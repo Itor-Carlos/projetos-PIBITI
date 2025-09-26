@@ -20,12 +20,13 @@ class Movie(BaseModel):
 
 class MovieDetailResponse(BaseModel):
     title: str
-    year: str
-    rating: str
+    year: int
+    rating: float
     url: str
     summary: str
     genres: List[str]
     language: str
+    runtime: int
 
 @mcp.tool()
 async def get_movies_info(genre: str, quantity: Optional[int], sorted: Optional[str]) -> Union[List[Movie], Dict[str, str]]:
@@ -101,10 +102,9 @@ def get_movie_info(title: str) -> Union[MovieDetailResponse, Dict[str, str]]:
             "query_term": title
         }
 
-        response = get(
-            BASE_URL,
-            params=paramsObject,
-        )
+        requestURL = f"{BASE_URL}?query_term={title}"
+
+        response = get(requestURL)
 
         if response.status_code != 200:
             return {"error": "Failed to retrieve data from the movie API."}
@@ -124,7 +124,8 @@ def get_movie_info(title: str) -> Union[MovieDetailResponse, Dict[str, str]]:
             "url": movie.get("url", ""),
             "summary": movie.get("summary", ""),
             "genres": movie.get("genres", []),
-            "language": movie.get("language", "N/A")
+            "language": movie.get("language", "N/A"),
+            "runtime": movie.get("runtime",0 )
         }
 
     except Exception as e:
