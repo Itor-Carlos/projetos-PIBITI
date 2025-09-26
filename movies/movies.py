@@ -135,5 +135,13 @@ def get_movie_info(title: str) -> Union[MovieDetailResponse, Dict[str, str]]:
             "error": f"An unexpected error occurred: {str(e)}"
         }
 
+@mcp.tool()
+def ping() -> Dict[str, str]:
+    """
+    Health check tool to verify if the MCP server is alive.
+    """
+    return {"status": "alive", "message": "MCP movies server is running"}
+
+
 if __name__ == "__main__":
     mcp.run(transport="stdio")
