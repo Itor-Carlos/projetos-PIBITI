@@ -65,7 +65,6 @@ export default function Calculadora() {
             />
           </div>
 
-          {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 mb-6">
             <button
               onClick={calcular}
