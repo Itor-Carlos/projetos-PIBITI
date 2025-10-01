@@ -7,8 +7,9 @@ export default function MoviesPage() {
   const [answer, setAnswer] = useState("");
 
   const handleAsk = async () => {
-    const res = await fetch(`/api/ask?q=${encodeURIComponent(question)}`);
+    const res = await fetch(`http://127.0.0.1:8000/ask?question=${encodeURIComponent(question)}`);
     const data = await res.json();
+    console.log(data)
     setAnswer(data.answer);
   };
 
